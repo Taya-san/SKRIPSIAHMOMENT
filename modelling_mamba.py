@@ -10,11 +10,11 @@ from configuration_mamba import MambaQuinConfig
 # 1. THE BENTO BOX (Custom Output) 🍱
 @dataclass
 class MambaOutput(ModelOutput):
-    loss: torch.FloatTensor | None      # 🚨 The Trainer needs this!
+    loss: torch.FloatTensor | None = None      # 🚨 The Trainer needs this!
     logits: torch.FloatTensor = None              # Sentiment Scores
     reconstruction: torch.FloatTensor = None      # Autoencoder output
     latent_z: torch.FloatTensor = None            # The compressed embedding
-    cluster_logits: torch.FloatTensor | None # For DEKM/Clustering
+    cluster_logits: torch.FloatTensor | None = None # For DEKM/Clustering
 
 # 2. THE MODEL CLASS 🐍
 class MambaQuin(PreTrainedModel):
@@ -87,7 +87,7 @@ class MambaQuin(PreTrainedModel):
             loss_rec = self.loss_fct_recon(reconstruction, combo_tensor)
             
             # C. Combine them (Weighted)
-            total_loss = (self.cls_loss_weights * loss_cls) + (self.rec_loss_weights * loss_rec) + (self.rec_loss_weights * loss_rec)
+            total_loss = (self.cls_loss_weights * loss_cls) + (self.rec_loss_weights * loss_rec) + (self.rec_loss_weights * loss_clt)
 
         # 6. Return the Bento Box 🍱
         return MambaOutput(
