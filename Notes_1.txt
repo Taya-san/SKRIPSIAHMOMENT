@@ -1,0 +1,21 @@
+1. The "Projection Head" Logic (SimCLR) 📑
+
+Reference: Chen, T., Kornblith, S., Norouzi, M., & Hinton, G. (2020). A Simple Framework for Contrastive Learning of Visual Representations (SimCLR).
+
+    The Tea: Before SimCLR, people used single linear layers. SimCLR proved that adding a non-linear MLP head (Linear -> ReLU -> Linear) allows the backbone to learn better representations.
+    Why you use it: You cite this to say: "Following Chen et al. (2020), we employ a non-linear projection head to maintain the expressivity of the latent representation before classification."
+    Your Twist: We used GELU instead of ReLU because it's 2026 and we have standards.
+
+2. The "GELU" Activation 🧠
+
+Reference: Hendrycks, D., & Gimpel, K. (2016). Gaussian Error Linear Units (GELUs).
+
+    The Tea: ReLU dies (outputs zero) too easily. GELU is smooth and probabilistic.
+Why you use it: This is the standard activation function used in BERT, GPT-3, and Mamba itself. You are simply matching the architecture of your backbone (Mamba uses GELU internally).
+
+3. The "Pre-Norm" Stability (LayerNorm First) 🛡️
+
+Reference: Xiong, R., et al. (2020). On Layer Normalization in the Transformer Architecture.
+
+    The Tea: Original Transformers put the Norm after the addition (Post-Norm). Modern Transformers (and Mamba) put the Norm before (Pre-Norm).
+    Why you use it: Placing nn.LayerNorm at the start of your MLP block (before the Linear) makes training significantly more stable and prevents gradients from exploding, which is crucial when you are hacking a custom head onto a pre-trained model.
