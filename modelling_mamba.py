@@ -16,6 +16,48 @@ class MambaOutput(ModelOutput):
     latent_z: torch.FloatTensor = None            # The compressed embedding
     cluster_logits: torch.FloatTensor | None = None # For DEKM/Clustering
 
+class Encoder(nn.Module):
+    def __init__(self, input_dim, latent_dim):
+        super().__init__()
+        self.input_dim = input_dim
+        self.latent_dim = latent_dim
+        self.net = nn.Sequential(nn.Linear(self.input_dim, self.latent_dim), 
+                             nn.LayerNorm(self.latent_dim),
+                             nn.GELU()
+                             )
+    
+    def forward(self, x):
+        return self.net(x)
+
+class Decoder(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.net = nn.Sequential(nn.Linear(self.input_dim, self.output_dim), 
+                             nn.LayerNorm(self.output_dim),
+                             nn.GELU()
+                             )
+    
+    def forward(self, x):
+        return self.net(x)
+        
+class SentimentMLP(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super().__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.net = nn.Sequential(nn.Linear(self.input_dim, self.hidden_dim), 
+                             nn.LayerNorm(self.hidden_dim),
+                             nn.GELU(),
+                             nn.Dropout(0.1),
+                             nn.Linear(self.hidden_dim, self.output_dim)
+                             )
+    
+    def forward(self, x):
+        return self.net(x)
+
 # 2. THE MODEL CLASS 🐍
 class MambaQuin(PreTrainedModel):
     config_class = MambaQuinConfig # 🔗 Link to the blueprint
@@ -25,18 +67,21 @@ class MambaQuin(PreTrainedModel):
         # (This downloads the pre-trained Mamba weights)
         self.backbone = AutoModel.from_pretrained(config.backbone_model)
         
-        # Input size is 768 + 768 = 1536
-        self.encoder = nn.Sequential(
-            nn.Linear(config.d_model * 2, 256), 
-            nn.ReLU(),
-            nn.Linear(256, config.latent_dim)
-        )
+        encoder_layers = [Encoder(1536, config.latent_dim*config.encoder_layers)]
+
+        for i in range(config.encoder_layers - 1):
+            encoder_layers.append(Encoder(config.latent_dim*(i + 2), config.latent_dim*(i + 1)))
+
+        decoder_layers = []
+
+        for i in range(config.encoder_layers - 1):
+            decoder_layers.append(Decoder(config.latent_dim*(i + 1), config.latent_dim*(i + 2)))
         
-        self.decoder = nn.Sequential(
-            nn.Linear(config.latent_dim, 256),
-            nn.ReLU(),
-            nn.Linear(256, config.d_model * 2) 
-        )
+        decoder_layers.append(Decoder(config.latent_dim*config.decoder_layers, 1536))
+
+        # Input size is 768 + 768 = 1536
+        self.encoder = nn.Sequential(*encoder_layers)
+        self.decoder = nn.Sequential(*decoder_layers)
         
         self.sentiment_head = nn.Linear(config.latent_dim, config.num_classes)
         
@@ -46,7 +91,7 @@ class MambaQuin(PreTrainedModel):
         self.loss_fct_class = nn.CrossEntropyLoss()
         self.loss_fct_recon = nn.MSELoss()
 
-        self.cls_loss_weights = config.cls_loss_weights
+        self.cls_loss_weights = config.sen_loss_weights
         self.rec_loss_weights = config.rec_loss_weights
         self.clt_loss_weights = config.clt_loss_weights
 
