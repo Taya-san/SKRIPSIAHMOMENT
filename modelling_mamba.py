@@ -83,8 +83,8 @@ class MambaQuin(PreTrainedModel):
         self.encoder = nn.Sequential(*encoder_layers)
         self.decoder = nn.Sequential(*decoder_layers)
         
-        self.sentiment_head = nn.Linear(config.latent_dim, config.num_classes)
-        
+        self.sentiment_head = SentimentMLP(config.latent_dim, config.latent_dim, config.num_classes)
+
         # Randomly init 3 centers in the latent space
         self.cluster_centers = nn.Parameter(torch.randn(config.num_clusters, config.latent_dim))
 
