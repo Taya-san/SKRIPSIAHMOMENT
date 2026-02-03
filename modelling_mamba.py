@@ -85,23 +85,18 @@ class MambaQuin(PreTrainedModel):
         
         self.sentiment_head = SentimentMLP(config.latent_dim, config.latent_dim, config.num_classes)
 
-        # Randomly init 3 centers in the latent space
-        self.cluster_centers = nn.Parameter(torch.randn(config.num_clusters, config.latent_dim))
 
         self.loss_fct_class = nn.CrossEntropyLoss()
         self.loss_fct_recon = nn.MSELoss()
 
         self.cls_loss_weights = config.sen_loss_weights
         self.rec_loss_weights = config.rec_loss_weights
-        self.clt_loss_weights = config.clt_loss_weights
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
         # 1. Run Mamba 🐍
-        # Mamba usually ignores attention_mask, but we pass it just in case
         outputs = self.backbone(input_ids=input_ids)
         hidden = outputs.last_hidden_state # [Batch, Seq, 768]
         
-        # 2. Pooling (The Sandwich Strategy) 🥪
         # Average Pooling (Vibe)
         mean_pool = torch.mean(hidden, dim=1)
         # Max Pooling (Drama)
@@ -117,12 +112,6 @@ class MambaQuin(PreTrainedModel):
         logits = self.sentiment_head(z)
         reconstruction = self.decoder(z)
         
-        # Calculates distance from every Z to every Center
-        dist = torch.cdist(z, self.cluster_centers, p=2)
-        q_logits = -dist # Closer = Higher Score
-
-        loss_clt = q_logits
-        
         total_loss = None
         if labels is not None:
             # A. Sentiment Loss
@@ -132,7 +121,7 @@ class MambaQuin(PreTrainedModel):
             loss_rec = self.loss_fct_recon(reconstruction, combo_tensor)
             
             # C. Combine them (Weighted)
-            total_loss = (self.cls_loss_weights * loss_cls) + (self.rec_loss_weights * loss_rec) + (self.rec_loss_weights * loss_clt)
+            total_loss = (self.cls_loss_weights * loss_cls) + (self.rec_loss_weights * loss_rec)
 
         # 6. Return the Bento Box 🍱
         return MambaOutput(
@@ -140,5 +129,5 @@ class MambaQuin(PreTrainedModel):
             logits=logits,
             reconstruction=reconstruction,
             latent_z=z,
-            cluster_logits=q_logits
         )
+
