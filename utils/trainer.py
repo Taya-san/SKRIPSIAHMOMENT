@@ -54,7 +54,10 @@ def train_modelnoclt(
     model.float()
     model.to(device)
 
-    if epochs_loss_log != None:
+    if isinstance(epochs_loss_log, string):
+        with open(epoch_loss_log, "r") as f:
+            loss_historyb 
+    elif isinstance(epoch_loss_log, list):
         epochs_loss = epochs_loss_log
     else:
         epochs_loss = []
@@ -65,10 +68,29 @@ def train_modelnoclt(
         loop = tqdm(train_loader, desc=f'Epoch {epoch + 1}/epochs}', leave=True)
 
         for batch in loop:
+            optimizer.zero_grad()
             outputs = model(input_ids = loop['input_ids'],
                             attention_mask = loop['attention_mask'],
                             labels = loop['labels']
             )
+
+            loss = outputs.loss
+            running_loss += loss
+            loss.backward()
+            optimizer.step()
+
+        epoch_loss.append(running_loss / len(train_loader))
+
+    file_path = "./loss_history.txt"
+
+    with open(file_path, "w") as f:
+        for loss in epoch_loss:
+            f.write(f'{loss}\n')
+
+    print(f"Epoch history saved")
+
+
+
 
 
                     
