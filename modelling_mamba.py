@@ -91,19 +91,20 @@ class MambaQuin(PreTrainedModel):
         self.cls_loss_weights = config.sen_loss_weights
         self.rec_loss_weights = config.rec_loss_weights
 
-    def forward(self, input_ids, attention_mask, labels, **kwargs):
+    def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
         # 1. Run Mamba 🐍
-        outputs = self.backbone(input_ids=input_ids)
+        outputs = self.backbone(input_ids = input_ids,
+                                attention_mask = attention_mask)
         hidden = outputs.last_hidden_state # [Batch, Seq, 768]
-        att_mask = attention_mask.unqueeze(-1).expand(hidden.size()).float()
+        att_mask = attention_mask.unsqueeze(-1).float()
         
         # Average Pooling (Vibe)
         sum_hidden_masked = torch.sum(hidden * att_mask, dim = 1)
-        count_hidden_masked = torch.clamp(att_mask.sum(dim=1), min=1e-9)
+        count_hidden_masked = att_mask.sum(dim=1, keepdim = True).clamp(min=1)
         mean_pool = sum_hidden_masked / count_hidden_masked
 
         # Max Pooling (Drama)
-        hidden[att_mask == 0] = -1e9
+        hidden = hidden.masked_fill(att_mask == 0, -1e9)
         max_pool, _ = torch.max(hidden, dim=1)
         
         # CONCATENATE THEM -> [Batch, 1536]
@@ -123,7 +124,7 @@ class MambaQuin(PreTrainedModel):
             
             # B. Reconstruction Loss (Try to rebuild the combo vector)
             loss_rec = self.loss_fct_recon(reconstruction, combo_tensor)
-            
+           
             # C. Combine them (Weighted)
             total_loss = (self.cls_loss_weights * loss_cls) + (self.rec_loss_weights * loss_rec)
 
