@@ -101,6 +101,10 @@ def train_modelnoclt(
         loop = tqdm(training_loader, desc=f'Epoch {epoch + 1}/{epochs}', leave=True)
 
         for batch in loop:
+
+            batch = {k:v.to(device) for k,v in batch.items()}
+            outputs = model(**batch)
+
             optimizer.zero_grad()
 
             loss = outputs.loss
