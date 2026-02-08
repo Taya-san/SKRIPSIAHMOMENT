@@ -103,19 +103,20 @@ def train_modelnoclt(
         loop = tqdm(training_loader, desc=f'Epoch {epoch + 1}/{epochs}', leave=True)
 
         for batch in loop:
-            optimizer.zero_grad()
-            batch = {k: v.to(device) for k,v in batch.items()}
-            outputs = model(**batch)
-
-            loss = outputs.loss
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-            loop.set_postfix(loss=loss.item())
-
-        epoch_loss = running_loss/len(training_loader)
-        model.config.epochs_loss_log.append(epoch_loss)
-        print(f'Epoch {epoch + 1} loss: {epoch_loss:.4f}')
-
-
+            print(batch)
+        #     optimizer.zero_grad()
+        #     batch = {k: v.to(device) for k,v in batch.items()}
+        #     outputs = model(**batch)
+        #
+        #     loss = outputs.loss
+        #     loss.backward()
+        #     optimizer.step()
+        #
+        #     running_loss += loss.item()
+        #     loop.set_postfix(loss=loss.item())
+        #
+        # epoch_loss = running_loss/len(training_loader)
+        # model.config.epochs_loss_log.append(epoch_loss)
+        # print(f'Epoch {epoch + 1} loss: {epoch_loss:.4f}')
+        #
+        #
