@@ -105,8 +105,8 @@ class MambaQuin(PreTrainedModel):
         mean_pool = sum_hidden_masked / count_hidden_masked
 
         # Max Pooling (Drama)
-        hidden = hidden.masked_fill(att_mask == 0, -1e9)
-        max_pool, _ = torch.max(hidden, dim=1)
+        hidden_masked = hidden.masked_fill(att_mask == 0, -1e9)
+        max_pool, _ = torch.max(hidden_masked, dim=1)
         
         # CONCATENATE THEM -> [Batch, 1536]
         combo_tensor = torch.cat((mean_pool, max_pool), dim=1)
