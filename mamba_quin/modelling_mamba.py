@@ -5,7 +5,7 @@ from transformers.modeling_outputs import ModelOutput
 from dataclasses import dataclass
 
 # Import your config (assuming it's in the same folder)
-from configuration_mamba import MambaQuinConfig
+from .configuration_mamba import MambaQuinConfig
 
 # 1. THE BENTO BOX (Custom Output) 🍱
 @dataclass
