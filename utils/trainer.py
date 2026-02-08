@@ -78,7 +78,7 @@ def train_modelnoclt(
     test_loader = DataLoader(
             test_data,
             batch_size = batch_size,
-            shuffle = True,
+            shuffle = False,
             pin_memory = True,
             collate_fn = collator
     )
@@ -101,10 +101,12 @@ def train_modelnoclt(
         loop = tqdm(training_loader, desc=f'Epoch {epoch + 1}/{epochs}', leave=True)
 
         for batch in loop:
+            for k,v in batch.items():
+                print(k, type(v))
+            break
+
             optimizer.zero_grad()
             batch = {k: v.to(device) for k,v in batch.items()}
-            for k,v in batch.items():
-                print(k,v)
             outputs = model(**batch)
 
             loss = outputs.loss
