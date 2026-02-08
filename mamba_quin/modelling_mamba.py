@@ -93,11 +93,6 @@ class MambaQuin(PreTrainedModel):
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
 
-        print(input_ids)
-        print(attention_mask)
-        print(labels)
-        print(**kwargs)
-
         # 1. Run Mamba 🐍
         outputs = self.backbone(input_ids = input_ids,
                                 attention_mask = attention_mask)
@@ -106,7 +101,7 @@ class MambaQuin(PreTrainedModel):
         
         # Average Pooling (Vibe)
         sum_hidden_masked = torch.sum(hidden * att_mask, dim = 1)
-        count_hidden_masked = att_mask.sum(dim=1, keepdim = True).clamp(min=1)
+        count_hidden_masked = att_mask.sum(dim=1).clamp(min=1)
         mean_pool = sum_hidden_masked / count_hidden_masked
 
         # Max Pooling (Drama)
