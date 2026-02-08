@@ -1,4 +1,4 @@
-from dekm_functions import run_kmeans, compute_sw, compute_eigen
+from .dekm_functions import run_kmeans, compute_sw, compute_eigen
 import warnings
 from torch.utils.data import DataLoader
 import torch.optim as optim
