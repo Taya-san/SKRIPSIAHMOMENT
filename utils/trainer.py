@@ -102,7 +102,6 @@ def train_modelnoclt(
 
         for batch in loop:
             optimizer.zero_grad()
-            # batch = {k: v.to(device) for k,v in batch.items()}
             outputs = model(**batch)
 
             loss = outputs.loss
