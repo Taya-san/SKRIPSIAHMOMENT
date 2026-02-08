@@ -15,9 +15,9 @@ def train_modelnoclt(
         model,
         tokenizer,
         epochs,
-        tr_data,
-        ts_data,
         batch_size,
+        tr_data=None,
+        ts_data=None,
         optimizer_type = "adam",
         device = 'cuda',
         dataset_dict = None,
@@ -102,6 +102,7 @@ def train_modelnoclt(
 
         for batch in loop:
             optimizer.zero_grad()
+            batch = {k: v.to(device) for k,v in batch.items()}
             outputs = model(**batch)
 
             loss = outputs.loss
