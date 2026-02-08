@@ -61,12 +61,10 @@ def train_modelnoclt(
             type = 'torch',
             columns = ['input_ids', 'attention_mask', 'labels']
     )
-    print(training_data)
     test_data.set_format(
             type = 'torch',
             columns = ['input_ids', 'attention_mask', 'labels']
     )
-    print(test_data)
 
     collator = DataCollatorWithPadding(tokenizer)
 
@@ -91,32 +89,31 @@ def train_modelnoclt(
     elif optimizer_type == 'sgd':
         optimizer = optim.SGD(model.parameters(), lr = 1e-3)
 
-    model.train()
     model.float()
     model.to(device)
 
     model.config.epochs_loss_log = getattr(model.config, "epochs_loss_log", [])
 
     for epoch in range(epochs):
+        model.train()
         running_loss = 0.0
 
         loop = tqdm(training_loader, desc=f'Epoch {epoch + 1}/{epochs}', leave=True)
 
         for batch in loop:
-            print(batch)
-        #     optimizer.zero_grad()
-        #     batch = {k: v.to(device) for k,v in batch.items()}
-        #     outputs = model(**batch)
-        #
-        #     loss = outputs.loss
-        #     loss.backward()
-        #     optimizer.step()
-        #
-        #     running_loss += loss.item()
-        #     loop.set_postfix(loss=loss.item())
-        #
-        # epoch_loss = running_loss/len(training_loader)
-        # model.config.epochs_loss_log.append(epoch_loss)
-        # print(f'Epoch {epoch + 1} loss: {epoch_loss:.4f}')
-        #
-        #
+            optimizer.zero_grad()
+            batch = {k: v.to(device) for k,v in batch.items()}
+            outputs = model(**batch)
+
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            loop.set_postfix(loss=loss.item())
+
+        epoch_loss = running_loss/len(training_loader)
+        model.config.epochs_loss_log.append(epoch_loss)
+        print(f'Epoch {epoch + 1} loss: {epoch_loss:.4f}')
+
+
