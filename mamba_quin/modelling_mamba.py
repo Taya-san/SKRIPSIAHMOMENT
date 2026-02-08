@@ -94,8 +94,7 @@ class MambaQuin(PreTrainedModel):
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
 
         # 1. Run Mamba 🐍
-        outputs = self.backbone(input_ids = input_ids,
-                                attention_mask = attention_mask)
+        outputs = self.backbone(input_ids = input_ids)
         hidden = outputs.last_hidden_state # [Batch, Seq, 768]
         att_mask = attention_mask.unsqueeze(-1).float()
         
