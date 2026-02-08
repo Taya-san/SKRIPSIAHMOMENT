@@ -102,7 +102,6 @@ def train_modelnoclt(
 
         for batch in loop:
             optimizer.zero_grad()
-            outputs = model(**batch)
 
             loss = outputs.loss
             loss.backward()
