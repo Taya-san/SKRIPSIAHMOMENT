@@ -61,10 +61,12 @@ def train_modelnoclt(
             type = 'torch',
             columns = ['input_ids', 'attention_mask', 'labels']
     )
+    print(training_data)
     test_data.set_format(
             type = 'torch',
             columns = ['input_ids', 'attention_mask', 'labels']
     )
+    print(test_data)
 
     collator = DataCollatorWithPadding(tokenizer)
 
@@ -101,10 +103,6 @@ def train_modelnoclt(
         loop = tqdm(training_loader, desc=f'Epoch {epoch + 1}/{epochs}', leave=True)
 
         for batch in loop:
-            for k,v in batch.items():
-                print(k, type(v))
-            break
-
             optimizer.zero_grad()
             batch = {k: v.to(device) for k,v in batch.items()}
             outputs = model(**batch)

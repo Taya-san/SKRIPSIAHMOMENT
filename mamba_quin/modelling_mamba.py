@@ -92,6 +92,12 @@ class MambaQuin(PreTrainedModel):
         self.rec_loss_weights = config.rec_loss_weights
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
+
+        print(input_ids)
+        print(attention_mask)
+        print(labels)
+        print(**kwargs)
+
         # 1. Run Mamba 🐍
         outputs = self.backbone(input_ids = input_ids,
                                 attention_mask = attention_mask)
