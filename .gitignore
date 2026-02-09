@@ -3,5 +3,5 @@
 *.jpg
 *.jpeg
 *.svg
-
 *.swp
+sync_to_colab.sh
