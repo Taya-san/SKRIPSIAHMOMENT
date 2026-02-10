@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import PreTrainedModel, AutoModel
+from transformers import PreTrainedModel, AutoModel, AutoConfig
 from transformers.modeling_outputs import ModelOutput
 from dataclasses import dataclass
 
@@ -34,9 +34,18 @@ class Decoder(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.net = nn.Sequential(nn.Linear(self.input_dim, self.output_dim), 
-                             nn.LayerNorm(self.output_dim),
-                             nn.GELU()
+                                 nn.LayerNorm(self.output_dim)
                              )
+    
+    def forward(self, x):
+        return self.net(x)
+
+class DecoderLast(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.net = nn.Sequential(nn.Linear(self.input_dim, self.output_dim))
     
     def forward(self, x):
         return self.net(x)
@@ -64,7 +73,11 @@ class MambaQuin(PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         # (This downloads the pre-trained Mamba weights)
-        self.backbone = AutoModel.from_pretrained(config.backbone_model)
+        backbone_cfg = AutoConfig.from_dict(config.backbone_config)
+        self.backbone = AutoModel.from_config(backbone_cfg)
+
+        for p in self.backbone.parameters():
+            p.requires_grad = False
         
         encoder_layers = [Encoder(1536, config.latent_dim*config.encoder_layers)]
 
@@ -76,7 +89,7 @@ class MambaQuin(PreTrainedModel):
         for i in range(config.encoder_layers - 1):
             decoder_layers.append(Decoder(config.latent_dim*(i + 1), config.latent_dim*(i + 2)))
         
-        decoder_layers.append(Decoder(config.latent_dim*config.decoder_layers, 1536))
+        decoder_layers.append(DecoderLast(config.latent_dim*config.decoder_layers, 1536))
 
         # Input size is 768 + 768 = 1536
         self.encoder = nn.Sequential(*encoder_layers)
@@ -94,8 +107,10 @@ class MambaQuin(PreTrainedModel):
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
 
         # 1. Run Mamba 🐍
-        outputs = self.backbone(input_ids = input_ids)
-        hidden = outputs.last_hidden_state # [Batch, Seq, 768]
+        
+        with torch.no_grad():
+            outputs = self.backbone(input_ids = input_ids)
+        hidden = outputs.last_hidden_state.detach() # [Batch, Seq, 768]
         att_mask = attention_mask.unsqueeze(-1).float()
         
         # Average Pooling (Vibe)
