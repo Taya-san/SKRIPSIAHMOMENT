@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import PreTrainedModel, AutoModel, AutoConfig
+from transformers import PreTrainedModel, MambaConfig, MambaModel
 from transformers.modeling_outputs import ModelOutput
 from dataclasses import dataclass
 
@@ -73,8 +73,11 @@ class MambaQuin(PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         # (This downloads the pre-trained Mamba weights)
-        backbone_cfg = AutoConfig.from_dict(config.backbone_config)
-        self.backbone = AutoModel.from_config(backbone_cfg)
+        if config.backbone_config is None:
+            raise ValueError("backbone_config must be provided")
+
+        backbone_cfg = MambaConfig.from_dict(config.backbone_config)
+        self.backbone = MambaModel(backbone_cfg)
 
         for p in self.backbone.parameters():
             p.requires_grad = False
@@ -103,6 +106,8 @@ class MambaQuin(PreTrainedModel):
 
         self.cls_loss_weights = config.sen_loss_weights
         self.rec_loss_weights = config.rec_loss_weights
+        
+        self.post_init()
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
 
