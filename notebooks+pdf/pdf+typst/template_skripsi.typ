@@ -24,7 +24,7 @@
     first-line-indent: 1cm,
   )
 
-  show par: set block(spacing: 1.5em)
+  set par(spacing: 1.5em)
 
   let number-to-letter(n) = {
     str.from-unicode(96+n)
@@ -32,8 +32,8 @@
 
   set heading(
     numbering: (..nums) => {
-      let level = nums.pos.len()
-      let val = nums.pos.last()
+      let level = nums.pos().len()
+      let val = nums.pos().last()
       if level == 1 { return str(val) + "." }
       else if level == 2 { return number-to-letter(val) + "." }
       else if level == 3 { return str(val) + ")" }
@@ -42,6 +42,7 @@
 
   show heading.where(level: 1): it => {
     counter(math.equation).update(0)
+    counter(figure).update(0)
     it
   }
   
@@ -49,11 +50,55 @@
     numbering: (..nums) => {
       context {
         let chapter = counter(heading).get().first()
-        let eq_num = nums.pos.first()
+        let eq_num = nums.pos().first()
         return "(" + str(chapter) + "." + str(eq_num) + ")"
       }
     }
   )
-    
+
+  set figure(
+    numbering: (..nums) => {
+      context {
+        let chapter = counter(heading).get().first()
+        let fig_num = nums.pos().first()
+        return str(chapter) + "." + str(fig_num)
+      }
+    }
+  )
+
+  show figure.where(kind: image): set figure(supplement: "Gambar")
+  show figure.where(kind: table): set figure(supplement: "Tabel")
   
+  show figure.caption: it => [
+    #emph[ #it.supplement #it.counter.display(it.numbering): #it.body ]
+  ]
+
+  set page(numbering: none)
+  align(center)[
+    #v(2cm)
+    #text(size: 14pt)[PROPOSAL SKRIPSI]
+    #v(2cm)
+    #text(size: 14pt)[#title]
+    #v(3cm)
+    Diajukan oleh: \
+    #v(1cm)
+    #author \
+    #npm \
+    #email
+    #v(3cm)
+    Dosen Pembimbing Proposal Skripsi: \
+    #v(1cm)
+    #supervisor
+    #v(1cm)
+    #v(1fr)
+    #program \
+    #dept \
+    #faculty \
+    #date \
+  ]
+  pagebreak()
+  
+  set page(numbering: "1")
+  counter(page).update(1)
+  body
 }
