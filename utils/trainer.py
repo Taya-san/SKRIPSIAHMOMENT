@@ -1,21 +1,23 @@
 from .dekm_functions import run_kmeans, compute_sw, compute_eigen
-import warnings
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from transformers import DataCollatorWithPadding
 from datasets import Dataset
 from tqdm import tqdm
-try:
-    import mamba_ssm
-except:
-    warnings.warn('missing dependencies likely to be mamba_ssm or causal-conv1d', UserWarning)
+ask_wandblog = input("Use wandb for logging? (y/n)")
+
+if ask_wandblog == "y":
+    import wandb
+    wandb.login()
 
 
+# training with no clustering
 def train_modelnoclt(
         model,
         tokenizer,
         epochs,
         batch_size,
+        tokenizer_max_length,
         tr_data=None,
         ts_data=None,
         optimizer_type = "adam",
@@ -37,7 +39,7 @@ def train_modelnoclt(
         return tokenizer(
             batch["text"],
             truncation = True,
-            max_length = 256,
+            max_length = tokenizer_max_length,
             padding = False
         )
 
@@ -94,6 +96,127 @@ def train_modelnoclt(
 
     model.config.epochs_loss_log = getattr(model.config, "epochs_loss_log", [])
 
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+
+        loop = tqdm(training_loader, desc=f'Epoch {epoch + 1}/{epochs}', leave=True)
+
+        for batch in loop:
+            batch = {k:v.to(device) for k,v in batch.items()}
+            outputs = model(**batch)
+
+            optimizer.zero_grad()
+
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            loop.set_postfix(loss=loss.item())
+
+        epoch_loss = running_loss/len(training_loader)
+        model.config.epochs_loss_log.append(epoch_loss)
+        print(f'Epoch {epoch + 1} loss: {epoch_loss:.4f}')
+
+# training with clustering
+def train_modelwithclt(
+        model,
+        tokenizer,
+        epochs,
+        batch_size,
+        tokenizer_max_length,
+        backbone_name,
+        lr = 1e-3,
+        tr_data=None,
+        ts_data=None,
+        optimizer_type = "adam",
+        device = 'cuda',
+        dataset_dict = None,
+        ):
+
+    if dataset_dict is not None :
+        training_data = dataset_dict['train']
+        test_data = dataset_dict['test']
+    else:
+        training_data = Dataset.from_dict(tr_data)
+        test_data = Dataset.from_dict(ts_data)
+
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    def tokenizer_fn(batch):
+        return tokenizer(
+            batch["text"],
+            truncation = True,
+            max_length = tokenizer_max_length,
+            padding = False
+        )
+
+    training_data = training_data.map(
+            tokenizer_fn,
+            batched = True,
+    )
+    test_data = test_data.map(
+            tokenizer_fn,
+            batched = True,
+    )
+
+
+    training_data = training_data.rename_column('label', 'labels')
+    test_data = test_data.rename_column('label', 'labels')
+
+    training_data = training_data.remove_columns(['text'])
+    test_data = test_data.remove_columns(['text'])
+
+    training_data.set_format(
+            type = 'torch',
+            columns = ['input_ids', 'attention_mask', 'labels']
+    )
+    test_data.set_format(
+            type = 'torch',
+            columns = ['input_ids', 'attention_mask', 'labels']
+    )
+
+    collator = DataCollatorWithPadding(tokenizer)
+
+    training_loader = DataLoader(
+            training_data,
+            batch_size = batch_size,
+            shuffle = True,
+            pin_memory = True,
+            collate_fn = collator
+    )
+    test_loader = DataLoader(
+            test_data,
+            batch_size = batch_size,
+            shuffle = False,
+            pin_memory = True,
+            collate_fn = collator
+    )
+
+
+    if optimizer_type == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr = lr)
+    elif optimizer_type == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr = lr)
+
+    model.float()
+    model.to(device)
+
+    model.config.epochs_log = getattr(model.config, "epochs_log", 0)
+
+    run = wandb.init(
+            project="mamba-sentiment-topic",
+            name=f"{backbone_name}_run",
+            config={
+                "lr":lr,
+                "batch_size":batch_size,
+                "epochs":model.config.epochs_log,
+                "model":backbone_name
+            }
+    )
+    
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0

@@ -8,9 +8,7 @@ class MambaQuinConfig(PretrainedConfig):
         backbone_config = None,
         d_model=768,        # Mamba hidden size (default for 130m)
         num_classes=2,      # Sentiment: Positive/Negative
-        latent_dim=128,     # The size of the compressed brain (Z)
-        encoder_layers = 2,
-        decoder_layers = 2,
+        latent_dim=32,     # The size of the compressed brain (Z)
         sen_loss_weights = 0.5,
         rec_loss_weights = 1,
         **kwargs,
@@ -19,8 +17,6 @@ class MambaQuinConfig(PretrainedConfig):
         self.d_model = d_model
         self.num_classes = num_classes
         self.latent_dim = latent_dim
-        self.encoder_layers = encoder_layers
-        self.decoder_layers = decoder_layers
         self.sen_loss_weights = sen_loss_weights
         self.rec_loss_weights = rec_loss_weights
         super().__init__(**kwargs)

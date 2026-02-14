@@ -20,10 +20,17 @@ class Encoder(nn.Module):
         super().__init__()
         self.input_dim = input_dim
         self.latent_dim = latent_dim
-        self.net = nn.Sequential(nn.Linear(self.input_dim, self.latent_dim), 
-                             nn.LayerNorm(self.latent_dim),
-                             nn.GELU()
-                             )
+        self.net = nn.Sequential(
+                            nn.Linear(self.input_dim, 512), 
+                            nn.LayerNorm(512),
+                            nn.GELU(),
+
+                            nn.Linear(512, 2048),
+                            nn.LayerNorm(2048),
+                            nn.GELU(),
+
+                            nn.Linear(2048, self.latent_dim)
+                            )
     
     def forward(self, x):
         return self.net(x)
@@ -33,19 +40,16 @@ class Decoder(nn.Module):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.net = nn.Sequential(nn.Linear(self.input_dim, self.output_dim), 
-                                 nn.LayerNorm(self.output_dim)
-                             )
-    
-    def forward(self, x):
-        return self.net(x)
+        self.net = nn.Sequential(nn.Linear(self.input_dim, 2048),
+                                 nn.LayerNorm(2048),
+                                 nn.GELU(),
 
-class DecoderLast(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super().__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.net = nn.Sequential(nn.Linear(self.input_dim, self.output_dim))
+                                 nn.Linear(2048, 512),
+                                 nn.LayerNorm(512),
+                                 nn.GELU(),
+
+                                 nn.Linear(512, self.output_dim)
+                                 )
     
     def forward(self, x):
         return self.net(x)
@@ -56,12 +60,14 @@ class SentimentMLP(nn.Module):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
-        self.net = nn.Sequential(nn.Linear(self.input_dim, self.hidden_dim), 
-                             nn.LayerNorm(self.hidden_dim),
-                             nn.GELU(),
-                             nn.Dropout(0.1),
-                             nn.Linear(self.hidden_dim, self.output_dim)
-                             )
+        self.net = nn.Sequential(
+                                nn.Linear(self.input_dim, 64),
+                                nn.LayerNorm(64),
+                                nn.GELU(),
+
+                                nn.Dropout(0.1),
+                                nn.Linear(64, self.output_dim)
+                                )
     
     def forward(self, x):
         return self.net(x)
@@ -79,24 +85,14 @@ class MambaQuin(PreTrainedModel):
         backbone_cfg = MambaConfig.from_dict(config.backbone_config)
         self.backbone = MambaModel(backbone_cfg)
 
+        self.last_hidden_states_size = backbone_cfg.hidden_size
+
         for p in self.backbone.parameters():
             p.requires_grad = False
         
-        encoder_layers = [Encoder(1536, config.latent_dim*config.encoder_layers)]
-
-        for i in range(config.encoder_layers - 1):
-            encoder_layers.append(Encoder(config.latent_dim*(i + 2), config.latent_dim*(i + 1)))
-
-        decoder_layers = []
-
-        for i in range(config.encoder_layers - 1):
-            decoder_layers.append(Decoder(config.latent_dim*(i + 1), config.latent_dim*(i + 2)))
-        
-        decoder_layers.append(DecoderLast(config.latent_dim*config.decoder_layers, 1536))
-
         # Input size is 768 + 768 = 1536
-        self.encoder = nn.Sequential(*encoder_layers)
-        self.decoder = nn.Sequential(*decoder_layers)
+        self.encoder = Encoder(2*self.last_hidden_states_size, config.latent_dim) 
+        self.decoder = Decoder(config.latent_dim, 2*self.last_hidden_states_size)
         
         self.sentiment_head = SentimentMLP(config.latent_dim, config.latent_dim, config.num_classes)
 
@@ -107,8 +103,6 @@ class MambaQuin(PreTrainedModel):
         self.cls_loss_weights = config.sen_loss_weights
         self.rec_loss_weights = config.rec_loss_weights
         
-        self.post_init()
-
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
 
         # 1. Run Mamba 🐍
